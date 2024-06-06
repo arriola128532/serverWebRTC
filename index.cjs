@@ -9,6 +9,25 @@ const wss = new WebSocket.Server({ server });
 
 app.use(cors());
 
+// Redirigir las solicitudes WebSocket seguras a no seguras
+server.on('upgrade', (request, socket, head) => {
+  if (request.headers['sec-websocket-protocol'] === 'wss') {
+    const target = 'ws://localhost:8080/';
+    const proxy = new WebSocket(target);
+    proxy.on('open', () => {
+      proxy.send(head);
+      proxy.send(request);
+      socket.pipe(proxy).pipe(socket);
+    });
+    proxy.on('error', (err) => {
+      console.error('Error en la conexión proxy:', err);
+      socket.destroy();
+    });
+  } else {
+    socket.destroy();
+  }
+});
+
 wss.on('connection', (ws) => {
   ws.on('message', (message) => {
     // Broadcast the message to all clients

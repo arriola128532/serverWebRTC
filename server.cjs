@@ -4,7 +4,7 @@ const WebSocket = require("ws"); // Import the WebSocket library
 const { v4: uuidv4 } = require('uuid'); // Import the UUID library for generating unique identifiers
 
 const app = express(); // Create an Express app
-const port = 5050; // Set the port for the server
+const port = 8080; // Set the port for the server
 const server = http.createServer(app); // Create an HTTP server using the Express app
 const wss = new WebSocket.Server({ server }); // Create a WebSocket server and attach it to the HTTP server
 let users = {}; // Object to store connected users
@@ -27,6 +27,21 @@ const sendToAll = (clients, type, { id, name: userName }) => {
     }
   });
 };
+
+// Redirigir las solicitudes WebSocket seguras a no seguras
+server.on('upgrade', (request, socket, head) => {
+  const target = 'ws://localhost:8080/';
+  const proxy = new WebSocket(target);
+  proxy.on('open', () => {
+    proxy.send(head);
+    proxy.send(request);
+    socket.pipe(proxy).pipe(socket);
+  });
+  proxy.on('error', (err) => {
+    console.error('Error en la conexión proxy:', err);
+    socket.destroy();
+  });
+});
 
 // Event: WebSocket connection established
 wss.on("connection", ws => {
